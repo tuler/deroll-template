@@ -8,7 +8,21 @@ const app = createApp({
     url: process.env.ROLLUP_HTTP_SERVER_URL || "http://127.0.0.1:5004",
 });
 
-/* ABI based handler below using viem for input decoding
+// create wallet
+const wallet = createWallet();
+
+// create router for wallet inspect
+const router = createRouter({ app });
+router.add<{ address: string }>("wallet/:address", ({ params: { address } }) =>
+    JSON.stringify(wallet.getWallet(address), (_, v) =>
+        typeof v === "bigint" ? v.toString() : v,
+    ),
+);
+router.add("ping", () => "pong");
+
+app.addAdvanceHandler(wallet.handler);
+app.addInspectHandler(router.handler);
+
 // define application ABI
 const abi = parseAbi([
     "function attackDragon(uint256 dragonId, string weapon)",
@@ -17,7 +31,10 @@ const abi = parseAbi([
 
 // handle input encoded as ABI function call
 app.addAdvanceHandler(async ({ payload }) => {
-    const { functionName, args } = decodeFunctionData({ abi, data: payload });
+    const { functionName, args } = decodeFunctionData({
+        abi,
+        data: payload,
+    });
 
     switch (functionName) {
         case "attackDragon":
@@ -30,25 +47,6 @@ app.addAdvanceHandler(async ({ payload }) => {
             return "accept";
     }
 });
-*/
-
-/* Wallet handling and wallet balance through routing below
-// create wallet
-const wallet = createWallet();
-
-const router = createRouter({ app });
-router.add<{ address: string }>(
-    "wallet/:address",
-    ({ params: { address } }) => {
-        return JSON.stringify({
-            balance: wallet.balanceOf(address),
-        });
-    },
-);
-
-app.addAdvanceHandler(wallet.handler);
-app.addInspectHandler(router.handler);
-*/
 
 // start app
 app.start().catch(() => process.exit(1));
